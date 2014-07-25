@@ -16,6 +16,7 @@ class Varien_Autoload
     static protected $_numberOfFilesAddedToCache = 0;
 
     static public $useAPC = NULL;
+    static public $useXCACHE = NULL;
     static protected $cacheKey = self::CACHE_KEY_PREFIX;
 
     /* Base Path */
@@ -37,7 +38,10 @@ class Varien_Autoload
         }
 
         // Allow APC to be disabled externally by explicitly setting Varien_Autoload::$useAPC = FALSE;
-        if (self::$useAPC === NULL) {
+        if (self::$useXCACHE === NULL) {
+            self::$useXCACHE = extension_loaded('XCache') && ini_get('xcache.cacher');
+        }
+        if (self::$useAPC === NULL && self::$useXCACHE == FALSE) {
             self::$useAPC = extension_loaded('apc') && ini_get('apc.enabled');
         }
 
@@ -107,7 +111,7 @@ class Varien_Autoload
 
         $fileName .= str_replace(' ', DIRECTORY_SEPARATOR, ucwords(str_replace('_', ' ', $className))) . '.php';
 
-        return $fileName;
+        return realpath($fileName);
     }
 
     /**
@@ -168,6 +172,11 @@ class Varien_Autoload
 
         if (self::isApcUsed()) {
             $value = apc_fetch(self::getCacheKey());
+            if ($value !== FALSE) {
+                self::setCache($value);
+            }
+        } elseif(self::isXcacheUsed()) {
+            $value = xcache_isset(self::getCacheKey()) ? xcache_get(self::getCacheKey()) : false;
             if ($value !== FALSE) {
                 self::setCache($value);
             }
@@ -233,6 +242,16 @@ class Varien_Autoload
     }
 
     /**
+     * Check if xcache is used
+     *
+     * @return bool
+     */
+    public static function isXcacheUsed()
+    {
+        return self::$useXCACHE;
+    }
+
+    /**
      * Get cache key (for apc)
      *
      * @return string
@@ -261,6 +280,10 @@ class Varien_Autoload
             if (self::isApcUsed()) {
                 if (PHP_SAPI != 'cli') {
                     apc_store(self::getCacheKey(), self::$_cache, 0);
+                }
+            } elseif(self::isXcacheUsed()) {
+                if (PHP_SAPI != 'cli') {
+                    xcache_set(self::getCacheKey(), self::$_cache, 0);
                 }
             } else {
                 $fileContent = serialize(self::$_cache);
