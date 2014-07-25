@@ -111,7 +111,7 @@ class Varien_Autoload
 
         $fileName .= str_replace(' ', DIRECTORY_SEPARATOR, ucwords(str_replace('_', ' ', $className))) . '.php';
 
-        return realpath($fileName);
+        return $fileName;
     }
 
     /**
@@ -225,7 +225,7 @@ class Varien_Autoload
         foreach ($paths as $path) {
             $fullPath = $path . DIRECTORY_SEPARATOR . $filename;
             if (file_exists($fullPath)) {
-                return $fullPath;
+                return realpath($fullPath);
             }
         }
         return false;
